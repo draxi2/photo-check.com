@@ -149,9 +149,92 @@ main{margin-left:240px;min-height:100vh;}
 .fb-err code{background:#111;padding:.15rem .45rem;border-radius:4px;font-family:var(--mono);font-size:.72rem;color:rgba(255,255,255,.6);}
 
 @media(max-width:860px){aside{display:none;}main{margin-left:0;}.gallery{columns:2 130px;}}
+
+/* ── LOADER OVERLAY ── */
+#loader{
+  position:fixed;inset:0;z-index:1000;
+  background:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2rem;
+  transition:opacity .5s ease;
+}
+#loader.hide{opacity:0;pointer-events:none;}
+
+.loader-eye{
+  animation:loaderFloat 2.5s ease-in-out infinite;
+  filter:drop-shadow(0 0 24px rgba(255,255,255,.25));
+}
+@keyframes loaderFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+.loader-txt{
+  font-family:var(--mono);
+  font-size:.72rem;letter-spacing:.35em;text-transform:uppercase;
+  color:rgba(255,255,255,.35);
+}
+.loader-txt span{
+  animation:loaderDots 1.4s steps(1) infinite;
+}
+@keyframes loaderDots{
+  0%  {content:''}
+  25% {content:'.'}
+  50% {content:'..'}
+  75% {content:'...'}
+}
+
+/* Barre de progression */
+.loader-bar-wrap{
+  width:220px;height:2px;
+  background:rgba(255,255,255,.08);
+  border-radius:2px;overflow:hidden;
+}
+.loader-bar-fill{
+  height:100%;width:0%;
+  background:#fff;
+  border-radius:2px;
+  box-shadow:0 0 10px rgba(255,255,255,.8);
+  transition:width .5s cubic-bezier(.4,0,.2,1);
+}
+
+/* Barre indéfinie tant qu'on n'a pas le total */
+.loader-bar-fill.indeterminate{
+  width:40%!important;
+  animation:loaderSlide 1.4s ease-in-out infinite;
+}
+@keyframes loaderSlide{
+  0%  {transform:translateX(-250%)}
+  100%{transform:translateX(350%)}
+}
+
+.loader-count{
+  font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;
+  color:rgba(255,255,255,.2);margin-top:.4rem;min-height:1em;
+  transition:opacity .2s;
+}
 </style>
 </head>
 <body>
+
+<div id="loader">
+  <svg class="loader-eye" width="120" height="66" viewBox="0 0 120 65">
+    <defs>
+      <filter id="lg"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="ls"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <path d="M8,32 Q30,4 60,4 Q90,4 112,32 Q90,60 60,60 Q30,60 8,32 Z"
+          fill="none" stroke="#fff" stroke-width="2.2" filter="url(#lg)" opacity=".9"/>
+    <circle cx="60" cy="32" r="13" fill="none" stroke="#fff" stroke-width="1.8" filter="url(#ls)"/>
+    <circle cx="60" cy="32" r="5" fill="#fff" filter="url(#lg)"/>
+    <path d="M60,45 Q54,55 60,62 Q66,55 60,45" fill="none" stroke="#fff" stroke-width="1.7" filter="url(#ls)" opacity=".8"/>
+  </svg>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;">
+    <div class="loader-txt">Loading<span id="loaderDots"></span></div>
+    <div class="loader-bar-wrap">
+      <div class="loader-bar-fill indeterminate" id="loaderFill"></div>
+    </div>
+    <div class="loader-count" id="loaderCount"></div>
+  </div>
+</div>
 
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
   <symbol id="EYE" viewBox="0 0 120 65">
@@ -288,6 +371,43 @@ window.showToast = function(msg, type) {
   t._t = setTimeout(function(){ t.classList.remove('on'); }, 3500);
 };
 
+// ── Loader overlay ────────────────────────────────────────────────────────
+(function(){
+  // Animate "Loading..." dots
+  var dots = document.getElementById('loaderDots');
+  var d = 0, dtxt = ['','.','..','...'];
+  setInterval(function(){ if(dots) dots.textContent = dtxt[d++ % 4]; }, 400);
+})();
+
+function loaderSetTotal(total) {
+  var fill = document.getElementById('loaderFill');
+  if(fill) fill.classList.remove('indeterminate');
+}
+
+function loaderUpdate(loaded, total) {
+  var fill  = document.getElementById('loaderFill');
+  var count = document.getElementById('loaderCount');
+  if(!fill) return;
+  fill.classList.remove('indeterminate');
+  var pct = total > 0 ? Math.min(95, 5 + (loaded / total) * 90) : 50;
+  fill.style.width = pct + '%';
+  if(count) count.textContent = loaded + ' / ' + total + ' photos';
+}
+
+function loaderDone(total) {
+  var fill  = document.getElementById('loaderFill');
+  var count = document.getElementById('loaderCount');
+  var ld    = document.getElementById('loader');
+  if(!ld || ld.style.display === 'none') return;
+  if(fill){ fill.classList.remove('indeterminate'); fill.style.width = '100%'; }
+  if(count) count.textContent = total > 0 ? '✓ ' + total + ' photos' : '✓';
+  setTimeout(function(){
+    ld.classList.add('hide');
+    setTimeout(function(){ ld.style.display='none'; }, 500);
+  }, 350);
+}
+
+
 // ── Troll filter ──────────────────────────────────────────────────────
 var TROLL_TAGS = ['meme','memes','funny','humor','humour','joke','jokes','lol','lmao','shitpost','comic','comics','rage','trollface','troll','cringe','cursed','dank','screenshot','text','quote','quotes','motivational','inspirational','advertisement','ad','promo','spam','watermark','logo','brand','recipe','food','cooking','meal','diet','nutrition','diy','craft','tutorial','howto','step','instructions','product','shopping','sale','discount','price','news','politics','election','protest','war','gore','graphic','nsfl','disturbing'];
 function isTroll(pin) {
@@ -346,8 +466,11 @@ function processSnap(snap) {
     if(k) seenImgs[k] = true;
     return true;
   });
+  loaderSetTotal(allPins.length);
+  loaderUpdate(allPins.length, allPins.length);
   applyFilter();
   buildAICloud();
+  setTimeout(function(){ loaderDone(allPins.length); }, 300);
 }
 
 // Charge les deleted d'abord, puis lance le listener pins
